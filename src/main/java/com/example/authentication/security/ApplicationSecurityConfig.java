@@ -12,6 +12,12 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.RememberMeServices;
+import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 @EnableWebSecurity
@@ -31,11 +37,28 @@ public class ApplicationSecurityConfig {
                         .requestMatchers("/", "/index.html", "/css/*", "/js/*").permitAll()
                         .requestMatchers("/api/**").hasRole(ApplicationUserRole.STUDENT.name())
                         .anyRequest().authenticated())
-                .httpBasic(Customizer.withDefaults());
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .permitAll()
+                        .defaultSuccessUrl("/courses", true)
+                                .passwordParameter("password")
+                                .usernameParameter("username")
+                        )
+                .rememberMe(remember -> remember
+                        .tokenValiditySeconds((int) TimeUnit.DAYS.toSeconds(21))
+                        .key("somethingverysecured")
+                                .rememberMeParameter("remember-me")
+                        )
+                .logout(logout->logout
+                        .logoutUrl("/logout")
+                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
+                        .clearAuthentication(true)
+                        .invalidateHttpSession(true)
+                        .deleteCookies("JSESSIONID","remember-me")
+                        .logoutSuccessUrl("/login"));
 
         return http.build();
     }
-
 
     @Bean
     public UserDetailsService userDetailsService(){
